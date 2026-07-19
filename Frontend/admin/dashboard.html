@@ -1,0 +1,86 @@
+<!doctype html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Dashboard — Admin Panel</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/main.css" />
+</head>
+<body>
+  <div class="admin-layout">
+    <aside class="sidebar" id="sidebar"></aside>
+    <main class="content">
+      <div class="content__header">
+        <div>
+          <h1>Dashboard</h1>
+          <p>Ringkasan konten portofolio kamu.</p>
+        </div>
+      </div>
+
+      <div class="stat-grid" id="stat-grid">
+        <div class="stat-card"><div class="stat-card__value">–</div><div class="stat-card__label">Memuat...</div></div>
+      </div>
+
+      <div class="card">
+        <h2 style="margin-bottom:16px;">Aktivitas Terbaru</h2>
+        <table>
+          <thead>
+            <tr><th>Tipe</th><th>Judul</th><th>Tanggal</th></tr>
+          </thead>
+          <tbody id="recent-body">
+            <tr class="empty-row"><td colspan="3">Memuat...</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </main>
+  </div>
+
+  <script src="js/main.js"></script>
+  <script>
+    requireAuth();
+    renderSidebar("dashboard");
+
+    async function loadStats() {
+      try {
+        const res = await apiFetch("/dashboard/stats");
+        const s = res.data;
+        document.getElementById("stat-grid").innerHTML = `
+          <div class="stat-card"><div class="stat-card__value">${s.skills_count}</div><div class="stat-card__label">Skill</div></div>
+          <div class="stat-card"><div class="stat-card__value">${s.experiences_count}</div><div class="stat-card__label">Pengalaman</div></div>
+          <div class="stat-card"><div class="stat-card__value">${s.projects_count}</div><div class="stat-card__label">Proyek</div></div>
+          <div class="stat-card"><div class="stat-card__value">${s.contacts_count ?? 0}</div><div class="stat-card__label">Pesan Kontak${s.unread_contacts_count ? ` <span class="badge-unread">${s.unread_contacts_count} baru</span>` : ""}</div></div>
+        `;
+      } catch (err) {
+        showToast(err.message, "error");
+      }
+    }
+
+    async function loadRecent() {
+      const tbody = document.getElementById("recent-body");
+      try {
+        const res = await apiFetch("/dashboard/recent");
+        const items = res.data || [];
+        if (!items.length) {
+          tbody.innerHTML = `<tr class="empty-row"><td colspan="3">Belum ada aktivitas.</td></tr>`;
+          return;
+        }
+        tbody.innerHTML = items
+          .map((item) => {
+            const title = item.type === "project" ? item.judul : item.posisi;
+            const typeLabel = item.type === "project" ? "Proyek" : "Pengalaman";
+            const date = item.created_at ? new Date(item.created_at).toLocaleDateString("id-ID") : "-";
+            return `<tr><td>${typeLabel}</td><td>${escapeHtml(title || "-")}</td><td>${date}</td></tr>`;
+          })
+          .join("");
+      } catch (err) {
+        tbody.innerHTML = `<tr class="empty-row"><td colspan="3">Gagal memuat aktivitas.</td></tr>`;
+      }
+    }
+
+    loadStats();
+    loadRecent();
+  </script>
+</body>
+</html>

@@ -1,0 +1,187 @@
+<!doctype html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Proyek — Admin Panel</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/main.css" />
+</head>
+<body>
+  <div class="admin-layout">
+    <aside class="sidebar" id="sidebar"></aside>
+    <main class="content">
+      <div class="content__header">
+        <div>
+          <h1>Proyek</h1>
+          <p>Portofolio proyek yang ditampilkan di halaman utama.</p>
+        </div>
+      </div>
+
+      <div class="card">
+        <h2 style="margin-bottom:16px;" id="form-title">Tambah Proyek</h2>
+
+        <img id="project-photo-preview" class="img-preview" src="" alt="Gambar proyek" style="display:none;" />
+        <label style="max-width:320px; margin-bottom:20px;">Gambar Proyek
+          <input type="file" id="project-photo-input" accept="image/*" />
+        </label>
+
+        <form id="project-form">
+          <input type="hidden" id="project-id" />
+          <div class="form-grid">
+            <label class="full">Judul
+              <input type="text" id="judul" required />
+            </label>
+            <label class="full">Deskripsi
+              <textarea id="deskripsi"></textarea>
+            </label>
+            <label class="full">Link Demo / Repository
+              <input type="url" id="link_project" placeholder="https://..." />
+            </label>
+          </div>
+          <div class="form-actions">
+            <button type="submit" class="btn btn--primary" id="save-btn">Simpan</button>
+            <button type="button" class="btn btn--ghost" id="cancel-btn" style="display:none;">Batal Edit</button>
+          </div>
+        </form>
+      </div>
+
+      <div class="card">
+        <table>
+          <thead><tr><th>Gambar</th><th>Judul</th><th>Link</th><th>Aksi</th></tr></thead>
+          <tbody id="projects-body">
+            <tr class="empty-row"><td colspan="4">Memuat...</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </main>
+  </div>
+
+  <script src="js/main.js"></script>
+  <script>
+    requireAuth();
+    renderSidebar("projects");
+
+    const form = document.getElementById("project-form");
+    const idInput = document.getElementById("project-id");
+    const cancelBtn = document.getElementById("cancel-btn");
+    const formTitle = document.getElementById("form-title");
+    let currentImageUrl = "";
+
+    async function loadProjects() {
+      const tbody = document.getElementById("projects-body");
+      try {
+        const res = await apiFetch("/projects");
+        const items = res.data || [];
+        if (!items.length) {
+          tbody.innerHTML = `<tr class="empty-row"><td colspan="4">Belum ada proyek.</td></tr>`;
+          return;
+        }
+        tbody.innerHTML = items
+          .map(
+            (p) => `
+          <tr>
+            <td>${p.gambar_url ? `<img src="${p.gambar_url}" style="width:56px;height:40px;object-fit:cover;border-radius:4px;">` : "-"}</td>
+            <td>${escapeHtml(p.judul)}</td>
+            <td>${p.link_project ? `<a href="${p.link_project}" target="_blank">Lihat &rarr;</a>` : "-"}</td>
+            <td class="table-actions">
+              <button class="btn btn--sm btn--ghost" onclick='editProject(${JSON.stringify(p)})'>Edit</button>
+              <button class="btn btn--sm btn--danger" onclick="deleteProject(${p.id})">Hapus</button>
+            </td>
+          </tr>`
+          )
+          .join("");
+      } catch (err) {
+        tbody.innerHTML = `<tr class="empty-row"><td colspan="4">Gagal memuat data.</td></tr>`;
+      }
+    }
+
+    function editProject(p) {
+      idInput.value = p.id;
+      document.getElementById("judul").value = p.judul;
+      document.getElementById("deskripsi").value = p.deskripsi || "";
+      document.getElementById("link_project").value = p.link_project || "";
+      currentImageUrl = p.gambar_url || "";
+      const preview = document.getElementById("project-photo-preview");
+      if (currentImageUrl) {
+        preview.src = currentImageUrl;
+        preview.style.display = "block";
+      } else {
+        preview.style.display = "none";
+      }
+      formTitle.textContent = "Edit Proyek";
+      cancelBtn.style.display = "inline-flex";
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    }
+
+    function resetForm() {
+      form.reset();
+      idInput.value = "";
+      currentImageUrl = "";
+      document.getElementById("project-photo-preview").style.display = "none";
+      formTitle.textContent = "Tambah Proyek";
+      cancelBtn.style.display = "none";
+    }
+
+    cancelBtn.addEventListener("click", resetForm);
+
+    document.getElementById("project-photo-input").addEventListener("change", async (e) => {
+      const file = e.target.files[0];
+      if (!file) return;
+
+      const formData = new FormData();
+      formData.append("file", file);
+
+      showToast("Mengunggah gambar...", "success");
+      try {
+        const res = await apiFetch("/upload/image", { method: "POST", body: formData });
+        currentImageUrl = res.url;
+        const preview = document.getElementById("project-photo-preview");
+        preview.src = res.url;
+        preview.style.display = "block";
+        showToast("Gambar berhasil diunggah.");
+      } catch (err) {
+        showToast("Upload gagal: " + err.message, "error");
+      }
+    });
+
+    async function deleteProject(id) {
+      if (!confirmDelete("Hapus proyek ini?")) return;
+      try {
+        await apiFetch(`/projects/${id}`, { method: "DELETE" });
+        showToast("Proyek berhasil dihapus.");
+        loadProjects();
+      } catch (err) {
+        showToast(err.message, "error");
+      }
+    }
+
+    form.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const payload = {
+        judul: document.getElementById("judul").value.trim(),
+        deskripsi: document.getElementById("deskripsi").value.trim(),
+        link_project: document.getElementById("link_project").value.trim(),
+      };
+      if (currentImageUrl) payload.gambar_url = currentImageUrl;
+
+      try {
+        if (idInput.value) {
+          await apiFetch(`/projects/${idInput.value}`, { method: "PUT", body: JSON.stringify(payload) });
+          showToast("Proyek berhasil diperbarui.");
+        } else {
+          await apiFetch("/projects", { method: "POST", body: JSON.stringify(payload) });
+          showToast("Proyek berhasil ditambahkan.");
+        }
+        resetForm();
+        loadProjects();
+      } catch (err) {
+        showToast(err.message, "error");
+      }
+    });
+
+    loadProjects();
+  </script>
+</body>
+</html>

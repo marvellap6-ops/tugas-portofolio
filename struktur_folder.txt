@@ -1,0 +1,42 @@
+Tugas_Portofolio/
+│
+├── Backend/
+│   ├── admin/
+│   │   ├── login.py          # Login/logout admin + decorator token_required (JWT)
+│   │   ├── dashboard.py       # Statistik & aktivitas terbaru untuk dashboard admin
+│   │   ├── profiles.py        # GET/PUT data profil (singleton per admin)
+│   │   ├── experience.py      # CRUD pengalaman
+│   │   ├── projects.py        # CRUD proyek
+│   │   ├── skills.py          # CRUD skill
+│   │   ├── upload.py          # Upload gambar ke Cloudinary
+│   │   └── contacts.py        # Lihat / tandai dibaca / hapus pesan kontak
+│   │
+│   └── utama/
+│       └── utama.py           # GET /api/main-profile (publik) + POST /api/contact
+│
+├── Frontend/
+│   ├── admin/
+│   │   ├── css/main.css        # Gaya bersama seluruh panel admin
+│   │   ├── js/main.js          # Helper bersama: auth token, fetch API, sidebar, toast
+│   │   ├── login.html
+│   │   ├── dashboard.html
+│   │   ├── profiles.html
+│   │   ├── experience.html
+│   │   ├── projects.html
+│   │   ├── skills.html
+│   │   └── contacts.html
+│   │
+│   └── utama/
+│       ├── css/style.css
+│       └── js/script.js        # Fetch /api/main-profile & submit /api/contact
+│
+├── database.sql        # Skema tabel: users, profiles, skills, experiences, projects, contacts
+├── seed.py              # Buat akun admin pertama + baris profil kosong (jalankan sekali)
+├── index.html            # Halaman utama portofolio
+├── app.py
+├── config.py             # Semua konfigurasi via os.getenv()
+├── model.py              # Kelas Database (wrapper PyMySQL ke TiDB)
+├── requirements.txt
+├── .env.example          # Salin ke .env lalu isi kredensial asli
+├── README.md
+└── struktur_folder.txt

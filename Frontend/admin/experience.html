@@ -1,0 +1,154 @@
+<!doctype html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Pengalaman — Admin Panel</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/main.css" />
+</head>
+<body>
+  <div class="admin-layout">
+    <aside class="sidebar" id="sidebar"></aside>
+    <main class="content">
+      <div class="content__header">
+        <div>
+          <h1>Pengalaman</h1>
+          <p>Riwayat pekerjaan / organisasi yang ditampilkan di halaman utama.</p>
+        </div>
+      </div>
+
+      <div class="card">
+        <h2 style="margin-bottom:16px;" id="form-title">Tambah Pengalaman</h2>
+        <form id="exp-form">
+          <input type="hidden" id="exp-id" />
+          <div class="form-grid">
+            <label>Posisi
+              <input type="text" id="posisi" required />
+            </label>
+            <label>Perusahaan / Organisasi
+              <input type="text" id="perusahaan" required />
+            </label>
+            <label>Durasi
+              <input type="text" id="durasi" placeholder="mis. Jan 2024 - Sekarang" required />
+            </label>
+            <label class="full">Deskripsi
+              <textarea id="deskripsi"></textarea>
+            </label>
+          </div>
+          <div class="form-actions">
+            <button type="submit" class="btn btn--primary" id="save-btn">Simpan</button>
+            <button type="button" class="btn btn--ghost" id="cancel-btn" style="display:none;">Batal Edit</button>
+          </div>
+        </form>
+      </div>
+
+      <div class="card">
+        <table>
+          <thead><tr><th>Posisi</th><th>Perusahaan</th><th>Durasi</th><th>Aksi</th></tr></thead>
+          <tbody id="exp-body">
+            <tr class="empty-row"><td colspan="4">Memuat...</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </main>
+  </div>
+
+  <script src="js/main.js"></script>
+  <script>
+    requireAuth();
+    renderSidebar("experience");
+
+    const form = document.getElementById("exp-form");
+    const idInput = document.getElementById("exp-id");
+    const cancelBtn = document.getElementById("cancel-btn");
+    const formTitle = document.getElementById("form-title");
+
+    async function loadExperiences() {
+      const tbody = document.getElementById("exp-body");
+      try {
+        const res = await apiFetch("/experiences");
+        const items = res.data || [];
+        if (!items.length) {
+          tbody.innerHTML = `<tr class="empty-row"><td colspan="4">Belum ada pengalaman.</td></tr>`;
+          return;
+        }
+        tbody.innerHTML = items
+          .map(
+            (x) => `
+          <tr>
+            <td>${escapeHtml(x.posisi)}</td>
+            <td>${escapeHtml(x.perusahaan)}</td>
+            <td>${escapeHtml(x.durasi || "-")}</td>
+            <td class="table-actions">
+              <button class="btn btn--sm btn--ghost" onclick='editExp(${JSON.stringify(x)})'>Edit</button>
+              <button class="btn btn--sm btn--danger" onclick="deleteExp(${x.id})">Hapus</button>
+            </td>
+          </tr>`
+          )
+          .join("");
+      } catch (err) {
+        tbody.innerHTML = `<tr class="empty-row"><td colspan="4">Gagal memuat data.</td></tr>`;
+      }
+    }
+
+    function editExp(x) {
+      idInput.value = x.id;
+      document.getElementById("posisi").value = x.posisi;
+      document.getElementById("perusahaan").value = x.perusahaan;
+      document.getElementById("durasi").value = x.durasi || "";
+      document.getElementById("deskripsi").value = x.deskripsi || "";
+      formTitle.textContent = "Edit Pengalaman";
+      cancelBtn.style.display = "inline-flex";
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    }
+
+    function resetForm() {
+      form.reset();
+      idInput.value = "";
+      formTitle.textContent = "Tambah Pengalaman";
+      cancelBtn.style.display = "none";
+    }
+
+    cancelBtn.addEventListener("click", resetForm);
+
+    async function deleteExp(id) {
+      if (!confirmDelete("Hapus pengalaman ini?")) return;
+      try {
+        await apiFetch(`/experiences/${id}`, { method: "DELETE" });
+        showToast("Pengalaman berhasil dihapus.");
+        loadExperiences();
+      } catch (err) {
+        showToast(err.message, "error");
+      }
+    }
+
+    form.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const payload = {
+        posisi: document.getElementById("posisi").value.trim(),
+        perusahaan: document.getElementById("perusahaan").value.trim(),
+        durasi: document.getElementById("durasi").value.trim(),
+        deskripsi: document.getElementById("deskripsi").value.trim(),
+      };
+
+      try {
+        if (idInput.value) {
+          await apiFetch(`/experiences/${idInput.value}`, { method: "PUT", body: JSON.stringify(payload) });
+          showToast("Pengalaman berhasil diperbarui.");
+        } else {
+          await apiFetch("/experiences", { method: "POST", body: JSON.stringify(payload) });
+          showToast("Pengalaman berhasil ditambahkan.");
+        }
+        resetForm();
+        loadExperiences();
+      } catch (err) {
+        showToast(err.message, "error");
+      }
+    });
+
+    loadExperiences();
+  </script>
+</body>
+</html>

@@ -1,0 +1,73 @@
+<!doctype html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Login Admin — Portofolio</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/main.css" />
+</head>
+<body class="login-page">
+  <div class="login-box">
+    <h1>Admin Panel</h1>
+    <p class="subtitle">Masuk untuk mengelola konten portofolio.</p>
+    <div class="login-error" id="login-error"></div>
+    <form id="login-form">
+      <label>Username
+        <input type="text" id="username" name="username" required autocomplete="username" />
+      </label>
+      <label>Password
+        <input type="password" id="password" name="password" required autocomplete="current-password" />
+      </label>
+      <div class="form-actions">
+        <button type="submit" class="btn btn--primary" id="login-btn" style="width:100%; justify-content:center;">Masuk</button>
+      </div>
+    </form>
+  </div>
+
+  <script src="js/main.js"></script>
+  <script>
+    // Jika sudah login, langsung lempar ke dashboard
+    if (getToken()) window.location.href = "dashboard.html";
+
+    const form = document.getElementById("login-form");
+    const errorBox = document.getElementById("login-error");
+    const btn = document.getElementById("login-btn");
+
+    form.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      errorBox.classList.remove("show");
+      btn.disabled = true;
+      btn.textContent = "Memproses...";
+
+      try {
+        const response = await fetch(`${API_BASE}/login`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            username: document.getElementById("username").value.trim(),
+            password: document.getElementById("password").value,
+          }),
+        });
+        const data = await response.json();
+
+        if (!response.ok) {
+          errorBox.textContent = data.error || "Login gagal.";
+          errorBox.classList.add("show");
+          return;
+        }
+
+        setSession(data.token, data.user);
+        window.location.href = "dashboard.html";
+      } catch (err) {
+        errorBox.textContent = "Gagal terhubung ke server.";
+        errorBox.classList.add("show");
+      } finally {
+        btn.disabled = false;
+        btn.textContent = "Masuk";
+      }
+    });
+  </script>
+</body>
+</html>

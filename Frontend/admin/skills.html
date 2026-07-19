@@ -1,0 +1,143 @@
+<!doctype html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Skill — Admin Panel</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/main.css" />
+</head>
+<body>
+  <div class="admin-layout">
+    <aside class="sidebar" id="sidebar"></aside>
+    <main class="content">
+      <div class="content__header">
+        <div>
+          <h1>Skill</h1>
+          <p>Daftar keahlian yang ditampilkan di halaman utama.</p>
+        </div>
+      </div>
+
+      <div class="card">
+        <h2 style="margin-bottom:16px;" id="form-title">Tambah Skill</h2>
+        <form id="skill-form">
+          <input type="hidden" id="skill-id" />
+          <div class="form-grid">
+            <label>Nama Skill
+              <input type="text" id="nama_skill" required placeholder="mis. Python, Flask, React" />
+            </label>
+            <label>Icon Class (Font Awesome, opsional)
+              <input type="text" id="icon_class" placeholder="mis. fab fa-python" />
+            </label>
+          </div>
+          <div class="form-actions">
+            <button type="submit" class="btn btn--primary" id="save-btn">Simpan</button>
+            <button type="button" class="btn btn--ghost" id="cancel-btn" style="display:none;">Batal Edit</button>
+          </div>
+        </form>
+      </div>
+
+      <div class="card">
+        <table>
+          <thead><tr><th>Nama Skill</th><th>Icon Class</th><th>Aksi</th></tr></thead>
+          <tbody id="skills-body">
+            <tr class="empty-row"><td colspan="3">Memuat...</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </main>
+  </div>
+
+  <script src="js/main.js"></script>
+  <script>
+    requireAuth();
+    renderSidebar("skills");
+
+    const form = document.getElementById("skill-form");
+    const idInput = document.getElementById("skill-id");
+    const cancelBtn = document.getElementById("cancel-btn");
+    const formTitle = document.getElementById("form-title");
+
+    async function loadSkills() {
+      const tbody = document.getElementById("skills-body");
+      try {
+        const res = await apiFetch("/skills");
+        const items = res.data || [];
+        if (!items.length) {
+          tbody.innerHTML = `<tr class="empty-row"><td colspan="3">Belum ada skill.</td></tr>`;
+          return;
+        }
+        tbody.innerHTML = items
+          .map(
+            (s) => `
+          <tr>
+            <td>${escapeHtml(s.nama_skill)}</td>
+            <td><code>${escapeHtml(s.icon_class || "-")}</code></td>
+            <td class="table-actions">
+              <button class="btn btn--sm btn--ghost" onclick='editSkill(${JSON.stringify(s)})'>Edit</button>
+              <button class="btn btn--sm btn--danger" onclick="deleteSkill(${s.id})">Hapus</button>
+            </td>
+          </tr>`
+          )
+          .join("");
+      } catch (err) {
+        tbody.innerHTML = `<tr class="empty-row"><td colspan="3">Gagal memuat data.</td></tr>`;
+      }
+    }
+
+    function editSkill(s) {
+      idInput.value = s.id;
+      document.getElementById("nama_skill").value = s.nama_skill;
+      document.getElementById("icon_class").value = s.icon_class || "";
+      formTitle.textContent = "Edit Skill";
+      cancelBtn.style.display = "inline-flex";
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    }
+
+    function resetForm() {
+      form.reset();
+      idInput.value = "";
+      formTitle.textContent = "Tambah Skill";
+      cancelBtn.style.display = "none";
+    }
+
+    cancelBtn.addEventListener("click", resetForm);
+
+    async function deleteSkill(id) {
+      if (!confirmDelete("Hapus skill ini?")) return;
+      try {
+        await apiFetch(`/skills/${id}`, { method: "DELETE" });
+        showToast("Skill berhasil dihapus.");
+        loadSkills();
+      } catch (err) {
+        showToast(err.message, "error");
+      }
+    }
+
+    form.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const payload = {
+        nama_skill: document.getElementById("nama_skill").value.trim(),
+        icon_class: document.getElementById("icon_class").value.trim(),
+      };
+
+      try {
+        if (idInput.value) {
+          await apiFetch(`/skills/${idInput.value}`, { method: "PUT", body: JSON.stringify(payload) });
+          showToast("Skill berhasil diperbarui.");
+        } else {
+          await apiFetch("/skills", { method: "POST", body: JSON.stringify(payload) });
+          showToast("Skill berhasil ditambahkan.");
+        }
+        resetForm();
+        loadSkills();
+      } catch (err) {
+        showToast(err.message, "error");
+      }
+    });
+
+    loadSkills();
+  </script>
+</body>
+</html>

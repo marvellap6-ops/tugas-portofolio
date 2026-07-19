@@ -1,0 +1,92 @@
+<!doctype html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Pesan Kontak — Admin Panel</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/main.css" />
+</head>
+<body>
+  <div class="admin-layout">
+    <aside class="sidebar" id="sidebar"></aside>
+    <main class="content">
+      <div class="content__header">
+        <div>
+          <h1>Pesan Kontak</h1>
+          <p>Pesan yang dikirim pengunjung lewat form kontak di halaman utama.</p>
+        </div>
+      </div>
+
+      <div class="card">
+        <table>
+          <thead><tr><th>Status</th><th>Nama</th><th>Email</th><th>Pesan</th><th>Tanggal</th><th>Aksi</th></tr></thead>
+          <tbody id="contacts-body">
+            <tr class="empty-row"><td colspan="6">Memuat...</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </main>
+  </div>
+
+  <script src="js/main.js"></script>
+  <script>
+    requireAuth();
+    renderSidebar("contacts");
+
+    async function loadContacts() {
+      const tbody = document.getElementById("contacts-body");
+      try {
+        const res = await apiFetch("/contacts");
+        const items = res.data || [];
+        if (!items.length) {
+          tbody.innerHTML = `<tr class="empty-row"><td colspan="6">Belum ada pesan.</td></tr>`;
+          return;
+        }
+        tbody.innerHTML = items
+          .map((c) => {
+            const date = c.created_at ? new Date(c.created_at).toLocaleString("id-ID") : "-";
+            return `
+          <tr>
+            <td>${c.is_read ? "Dibaca" : '<span class="badge-unread">Baru</span>'}</td>
+            <td>${escapeHtml(c.name)}</td>
+            <td>${escapeHtml(c.email)}</td>
+            <td style="max-width:280px;">${escapeHtml(c.message)}</td>
+            <td>${date}</td>
+            <td class="table-actions">
+              ${c.is_read ? "" : `<button class="btn btn--sm btn--ghost" onclick="markRead(${c.id})">Tandai Dibaca</button>`}
+              <button class="btn btn--sm btn--danger" onclick="deleteContact(${c.id})">Hapus</button>
+            </td>
+          </tr>`;
+          })
+          .join("");
+      } catch (err) {
+        tbody.innerHTML = `<tr class="empty-row"><td colspan="6">Gagal memuat data.</td></tr>`;
+      }
+    }
+
+    async function markRead(id) {
+      try {
+        await apiFetch(`/contacts/${id}/read`, { method: "PUT" });
+        loadContacts();
+      } catch (err) {
+        showToast(err.message, "error");
+      }
+    }
+
+    async function deleteContact(id) {
+      if (!confirmDelete("Hapus pesan ini?")) return;
+      try {
+        await apiFetch(`/contacts/${id}`, { method: "DELETE" });
+        showToast("Pesan berhasil dihapus.");
+        loadContacts();
+      } catch (err) {
+        showToast(err.message, "error");
+      }
+    }
+
+    loadContacts();
+  </script>
+</body>
+</html>

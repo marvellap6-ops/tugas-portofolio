@@ -1,0 +1,150 @@
+<!doctype html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Profil — Admin Panel</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/main.css" />
+</head>
+<body>
+  <div class="admin-layout">
+    <aside class="sidebar" id="sidebar"></aside>
+    <main class="content">
+      <div class="content__header">
+        <div>
+          <h1>Profil</h1>
+          <p>Data ini ditampilkan di halaman utama portofolio.</p>
+        </div>
+      </div>
+
+      <div class="card">
+        <img id="photo-preview" class="img-preview" src="" alt="Foto profil" style="display:none;" />
+        <label style="max-width:320px; margin-bottom:20px;">Foto Profil
+          <input type="file" id="photo-input" accept="image/*" />
+        </label>
+
+        <form id="profile-form">
+          <div class="form-grid">
+            <label>Nama Lengkap
+              <input type="text" name="nama_lengkap" id="nama_lengkap" required />
+            </label>
+            <label>Nama Panggilan
+              <input type="text" name="nama_panggilan" id="nama_panggilan" />
+            </label>
+            <label>Email
+              <input type="email" name="email" id="email" />
+            </label>
+            <label>Telepon
+              <input type="text" name="telepon" id="telepon" />
+            </label>
+            <label>Tempat Lahir
+              <input type="text" name="tempat_lahir" id="tempat_lahir" />
+            </label>
+            <label>Tanggal Lahir
+              <input type="date" name="tanggal_lahir" id="tanggal_lahir" />
+            </label>
+            <label>Universitas
+              <input type="text" name="universitas" id="universitas" />
+            </label>
+            <label>Fakultas
+              <input type="text" name="fakultas" id="fakultas" />
+            </label>
+            <label>Program Studi
+              <input type="text" name="prodi" id="prodi" />
+            </label>
+            <label>Semester
+              <input type="text" name="semester" id="semester" />
+            </label>
+            <label class="full">Alamat
+              <input type="text" name="alamat" id="alamat" />
+            </label>
+          </div>
+          <div class="form-actions">
+            <button type="submit" class="btn btn--primary" id="save-btn">Simpan Profil</button>
+          </div>
+        </form>
+      </div>
+    </main>
+  </div>
+
+  <script src="js/main.js"></script>
+  <script>
+    requireAuth();
+    renderSidebar("profiles");
+
+    const fields = [
+      "nama_lengkap", "nama_panggilan", "email", "telepon", "tempat_lahir",
+      "tanggal_lahir", "universitas", "fakultas", "prodi", "semester", "alamat",
+    ];
+
+    let currentPhotoUrl = "";
+
+    async function loadProfile() {
+      try {
+        const res = await apiFetch("/profiles");
+        const p = res.data || {};
+        fields.forEach((f) => {
+          if (document.getElementById(f) && p[f] !== undefined && p[f] !== null) {
+            document.getElementById(f).value = p[f];
+          }
+        });
+        if (p.foto_url) {
+          currentPhotoUrl = p.foto_url;
+          const img = document.getElementById("photo-preview");
+          img.src = p.foto_url;
+          img.style.display = "block";
+        }
+      } catch (err) {
+        showToast(err.message, "error");
+      }
+    }
+
+    document.getElementById("photo-input").addEventListener("change", async (e) => {
+      const file = e.target.files[0];
+      if (!file) return;
+
+      const formData = new FormData();
+      formData.append("file", file);
+
+      showToast("Mengunggah foto...", "success");
+      try {
+        const res = await apiFetch("/upload/image", { method: "POST", body: formData });
+        currentPhotoUrl = res.url;
+        const img = document.getElementById("photo-preview");
+        img.src = res.url;
+        img.style.display = "block";
+        showToast("Foto berhasil diunggah. Klik 'Simpan Profil' untuk menyimpan.", "success");
+      } catch (err) {
+        showToast("Upload gagal: " + err.message, "error");
+      }
+    });
+
+    document.getElementById("profile-form").addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const btn = document.getElementById("save-btn");
+      btn.disabled = true;
+      btn.textContent = "Menyimpan...";
+
+      const payload = {};
+      fields.forEach((f) => {
+        payload[f] = document.getElementById(f).value;
+      });
+      if (currentPhotoUrl) payload.foto_url = currentPhotoUrl;
+
+      try {
+        await apiFetch("/profiles", { method: "PUT", body: JSON.stringify(payload) });
+        showToast("Profil berhasil disimpan.");
+      } catch (err) {
+        showToast(err.message, "error");
+      } finally {
+        btn.disabled = false;
+        btn.textContent = "Simpan Profil";
+      }
+    });
+
+    loadProfile();
+  </script>
+</body>
+</html>
